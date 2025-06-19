@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Activity A06</title>
+  <script src="https://d3js.org/d3.v5.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #1e1e1e 0%, #202020 100%);
+      min-height: 100vh;
+      padding: 20px;
+      color: #fff;
+    }
+
+    .dashboard {
+      max-width: 1400px;
+      margin: auto;
+      background: rgba(0, 0, 0, 0.85);
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .header h1 {
+      font-size: 2.2em;
+      font-weight: 500;
+      color: #ff4e00;
+    }
+
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 30px;
+      justify-content: center;
+      justify-items: center;
+      margin-bottom: 30px;
+    }
+
+    .charts-grid-bottom {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 30px;
+      justify-content: center;
+      justify-items: center;
+    }
+
+    .chart-container {
+      background: #111;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 5px 15px rgba(255, 255, 255, 0.05);
+    }
+
+    .chart-title {
+      font-size: 1.2em;
+      font-weight: 600;
+      color: #e63946;
+      margin-bottom: 15px;
+      text-align: center;
+    }
+
+    svg {
+      border-radius: 8px;
+      background: #222;
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard">
+    <div class="header">
+      <h1>Activity A06</h1>
+    </div>
+
+    <div class="charts-grid">
+      <div class="chart-container">
+        <div class="chart-title">Mouse Coordinates</div>
+        <svg id="coords" width="300" height="250"></svg>
+      </div>
+
+      <div class="chart-container">
+        <div class="chart-title">Brush Interaction</div>
+        <svg id="brush1" width="300" height="250"></svg>
+      </div>
+
+      <div class="chart-container">
+        <div class="chart-title">Drag & Drop</div>
+        <svg id="dragdrop" width="300" height="250"></svg>
+      </div>
+    </div>
+
+    <div class="charts-grid-bottom">
+      <div class="chart-container">
+        <div class="chart-title">Dynamic Bars</div>
+        <svg id="stagger" width="400" height="250"></svg>
+      </div>
+
+      <div class="chart-container">
+        <div class="chart-title">Lissajous Curve</div>
+        <svg id="lissajous" width="400" height="250"></svg>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function initCoords() {
+      const svg = d3.select('#coords');
+      const txt = svg.append('text').attr('fill', '#eee').attr('font-size', 12);
+      svg.on('mousemove', function () {
+        const [x, y] = d3.mouse(this);
+        txt.attr('x', x + 10).attr('y', y - 10).text(`x: ${x}, y: ${y}`);
+      });
+    }
+
+    function initBrush() {
+      d3.csv('dense.csv').then(data => {
+        const svg1 = d3.select('#brush1');
+        const sc = d3.scaleLinear().domain([0, 10, 50]).range(['#ff0000', '#ff8c00', '#000']);
+
+        const cs = svg1.selectAll('circle').data(data).enter().append('circle')
+          .attr('r', 5)
+          .attr('cx', d => d.A)
+          .attr('cy', d => d.B)
+          .attr('fill', sc(Infinity))
+          .attr('fill-opacity', 0.6);
+
+        svg1.on('mousemove', function () {
+          const [mx, my] = d3.mouse(this);
+          cs.attr('fill', (d, i) => {
+            const r = Math.hypot(mx - cs.nodes()[i].cx.baseVal.value, my - cs.nodes()[i].cy.baseVal.value);
+            return sc(r);
+          });
+        }).on('mouseleave', () => cs.attr('fill', sc(Infinity)));
+      });
+    }
+
+    function initDragDrop() {
+      const svg = d3.select('#dragdrop');
+      const data = [
+        { cx: 50, cy: 100, r: 25, color: '#e63946' },
+        { cx: 150, cy: 100, r: 25, color: '#ff8c00' },
+        { cx: 250, cy: 100, r: 25, color: '#1d3557' }
+      ];
+
+      const circles = svg.selectAll('circle')
+        .data(data)
+        .enter()
+        .append('circle')
+        .attr('cx', d => d.cx)
+        .attr('cy', d => d.cy)
+        .attr('r', d => d.r)
+        .attr('fill', d => d.color)
+        .attr('stroke', '#fff')
+        .attr('stroke-width', 1.5);
+
+      const drag = d3.drag()
+        .on('start', function () {
+          d3.select(this).attr('stroke-width', 3);
+        })
+        .on('drag', function () {
+          const [x, y] = d3.mouse(svg.node());
+          d3.select(this).attr('cx', x).attr('cy', y);
+        })
+        .on('end', function () {
+          d3.select(this).attr('stroke-width', 1.5);
+        });
+
+      drag(circles);
+    }
+
+    function initStagger() {
+      let ds1 = [3, 2, 4, 6, 8, 10, 8, 6, 4, 2];
+      let ds2 = [1, 2, 3, 4, 6, 8, 6, 4, 3, 2];
+      const svg = d3.select('#stagger');
+      const scX = d3.scaleLinear().domain([0, ds1.length]).range([40, 380]);
+      const scY = d3.scaleLinear().domain([0, d3.max(ds1.concat(ds2))]).range([200, 20]);
+
+      svg.selectAll('rect').data(ds1).enter().append('rect')
+        .attr('x', (d, i) => scX(i))
+        .attr('y', d => scY(d))
+        .attr('width', 20)
+        .attr('height', d => 200 - scY(d))
+        .attr('fill', '#ff4e00')
+        .attr('rx', 4);
+
+      svg.on('click', () => {
+        [ds1, ds2] = [ds2, ds1];
+        svg.selectAll('rect').data(ds1)
+          .transition().duration(1000)
+          .attr('y', d => scY(d))
+          .attr('height', d => 200 - scY(d));
+      });
+    }
+
+    function initLissajous() {
+      const svg = d3.select('#lissajous');
+      let prev = [200, 125];
+      d3.timer(t => {
+        const phi = 2 * Math.PI * t / 10000;
+        const x = 200 + 80 * Math.cos(2 * phi);
+        const y = 125 + 80 * Math.sin(3 * phi);
+        svg.append('line')
+          .attr('x1', prev[0]).attr('y1', prev[1])
+          .attr('x2', x).attr('y2', y)
+          .attr('stroke', '#0077b6')
+          .attr('stroke-width', 2)
+          .attr('stroke-opacity', 1)
+          .transition().duration(3000)
+          .attr('stroke-opacity', 0).remove();
+        prev = [x, y];
+      });
+    }
+
+    function init() {
+      initCoords();
+      initBrush();
+      initDragDrop();
+      initStagger();
+      initLissajous();
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
